@@ -19,13 +19,13 @@
   ],
 
   // Metadata dataset. Query nhẹ, đọc nhiều -> D1.
-  // Thay database_id bằng UUID thật từ `wrangler d1 create loglens-db`.
-  // Dán ID thật KHÔNG phá local dev: chế độ --local bỏ qua ID này.
+  // database_id là DB thật trên Cloudflare; local dev bỏ qua nó và dùng
+  // sqlite trong .wrangler/state.
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "loglens-db",
-      "database_id": "loglens-db-local",
+      "database_id": "57afc538-a1a1-49c2-a4e9-c628bd1190f9",
       "migrations_dir": "migrations"
     }
   ],
