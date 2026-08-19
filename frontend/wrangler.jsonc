@@ -30,6 +30,9 @@
     }
   ],
 
+  // Bật Real-time Logs / Logs trên dashboard.
+  "observability": { "enabled": true },
+
   "vars": {
     // Analyzer Python. Local dev là uvicorn ở cổng 8000; TRƯỚC KHI DEPLOY đổi
     // thành URL public của analyzer, ví dụ "https://analyzer.mien.vn".
