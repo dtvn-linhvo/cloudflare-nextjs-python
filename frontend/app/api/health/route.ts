@@ -1,6 +1,5 @@
-/** NHẸ — kiểm tra Worker và analyzer Python còn sống. */
-import { callAnalyzer, env, hasAnalyzerToken } from "@/lib/cf";
-import { jsonHandledByWorker } from "@/lib/http";
+/** NHẸ — kiểm tra từng binding và analyzer. Dùng để nghiệm thu sau khi deploy. */
+import { callAnalyzer, env, hasToken, json } from "@/lib/cf";
 
 export const dynamic = "force-dynamic";
 
@@ -16,12 +15,16 @@ export async function GET() {
     analyzer = { ok: false, detail: err instanceof Error ? err.message : String(err) };
   }
 
-  const bindings = {
-    r2: Boolean(e.LOGS),
-    d1: Boolean(e.DB),
-    analyzer_url: e.ANALYZER_URL ?? null,
-    analyzer_token_set: hasAnalyzerToken(e),
-  };
-
-  return jsonHandledByWorker({ worker: "ok", bindings, analyzer }, started);
+  return json(
+    {
+      bindings: {
+        r2: Boolean(e.LOGS),
+        d1: Boolean(e.DB),
+        analyzer_url: e.ANALYZER_URL ?? null,
+        analyzer_token_set: hasToken(e),
+      },
+      analyzer,
+    },
+    started,
+  );
 }
