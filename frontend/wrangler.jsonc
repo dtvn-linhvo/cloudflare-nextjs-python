@@ -1,0 +1,44 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "loglens",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+
+  // Log thô + kết quả phân tích đã cache. Blob lớn -> R2.
+  "r2_buckets": [
+    {
+      "binding": "LOGS",
+      "bucket_name": "loglens-logs"
+    }
+  ],
+
+  // Metadata dataset. Query nhẹ, đọc nhiều -> D1.
+  // Thay database_id bằng UUID thật từ `wrangler d1 create loglens-db`.
+  // Dán ID thật KHÔNG phá local dev: chế độ --local bỏ qua ID này.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "loglens-db",
+      "database_id": "loglens-db-local",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  "vars": {
+    // Analyzer Python. Local dev là uvicorn ở cổng 8000; TRƯỚC KHI DEPLOY đổi
+    // thành URL public của analyzer, ví dụ "https://analyzer.mien.vn".
+    // Kiểm tra sau khi deploy bằng GET /api/health.
+    "ANALYZER_URL": "http://localhost:8000",
+    "MAX_UPLOAD_BYTES": "26214400"
+  }
+
+  // ANALYZER_TOKEN không đặt ở đây — file này được commit. Dùng:
+  //   npx wrangler secret put ANALYZER_TOKEN
+  // và local thì để trong .dev.vars
+}
