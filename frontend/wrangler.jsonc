@@ -15,6 +15,14 @@
     {
       "binding": "LOGS",
       "bucket_name": "loglens-logs"
+    },
+    // App không dùng ISR nên binding này hiện không được đọc tới. Giữ vì
+    // opennextjs-cloudflare deploy sẽ đòi đúng tên này nếu open-next.config
+    // bật r2IncrementalCache — có sẵn thì deploy không bao giờ fail vì nó,
+    // và sau này muốn bật ISR thì đã có chỗ.
+    {
+      "binding": "NEXT_INC_CACHE_R2_BUCKET",
+      "bucket_name": "loglens-logs"
     }
   ],
 
