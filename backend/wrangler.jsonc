@@ -1,0 +1,57 @@
+{
+  // Worker backend: analyzer + tầng dữ liệu (R2 + D1).
+  // Deploy: `uv run pywrangler deploy` (không phải wrangler
+  // thường — pywrangler còn phải vendor package Python vào bundle).
+  "name": "loglens-analyzer",
+  "main": "src/worker.py",
+  "compatibility_date": "2025-11-02",
+
+  // python_workers: Python Workers còn ở open beta, thiếu flag này là không chạy.
+  // python_dedicated_snapshot: cắt cold start, nhất là khi có numpy.
+  "compatibility_flags": ["python_workers", "python_dedicated_snapshot"],
+
+  // Bật Real-time Logs / Logs trên dashboard.
+  "observability": { "enabled": true },
+
+  // Tầng dữ liệu thuộc Worker này (xem sơ đồ): Python đọc/ghi trực tiếp.
+  // Log thô + kết quả phân tích đã cache. Blob lớn -> R2.
+  "r2_buckets": [
+    {
+      "binding": "LOGS",
+      "bucket_name": "loglens-logs"
+    }
+  ],
+
+  // Metadata dataset. Query nhẹ, đọc nhiều -> D1.
+  // database_id là DB thật trên Cloudflare; local dev bỏ qua nó và dùng
+  // sqlite trong backend/.wrangler/state.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "loglens-db",
+      "database_id": "57afc538-a1a1-49c2-a4e9-c628bd1190f9",
+      "migrations_dir": "migrations"
+      // Chạy migration (từ thư mục backend/):
+      //   npx wrangler d1 migrations apply loglens-db --local
+      //   npx wrangler d1 migrations apply loglens-db --remote
+    }
+  ],
+
+  "vars": {
+    // Chặn body quá lớn. 25MB khớp MAX_UPLOAD_BYTES bên frontend; Worker chỉ
+    // có 128MB bộ nhớ nên đừng nâng cao hơn nhiều.
+    "MAX_BODY_BYTES": "26214400"
+  },
+
+  // Cùng cổng với uvicorn cũ, để ANALYZER_URL local của frontend không phải đổi.
+  "dev": { "port": 8000 }
+
+  // ANALYZER_TOKEN không đặt ở đây — file này được commit. Dùng:
+  //   uv run pywrangler secret put ANALYZER_TOKEN
+  // và local thì để trong .dev.vars
+
+  // CPU: gói Free chỉ cho 10ms mỗi request -> /analyze chắc chắn lỗi. Workers
+  // Paid mặc định 30s, muốn hơn thì thêm:
+  //   "limits": { "cpu_ms": 300000 }
+  // (tối đa 5 phút, và chỉ đặt được khi đã ở gói Paid.)
+}

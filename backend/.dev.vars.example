@@ -1,0 +1,7 @@
+# Secrets cho local dev — copy thành .dev.vars (không commit).
+# pywrangler dev nạp file này thành var của Worker, đọc qua scope["env"].
+# Bỏ trống thì /analyze không kiểm tra token (chỉ nên vậy ở local).
+#
+# Sinh bằng: openssl rand -hex 32
+# Trên production đặt bằng: uv run pywrangler secret put ANALYZER_TOKEN
+# ANALYZER_TOKEN=

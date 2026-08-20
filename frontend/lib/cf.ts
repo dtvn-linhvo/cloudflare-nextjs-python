@@ -1,4 +1,9 @@
-/** Bindings Cloudflare + helper dùng chung cho các Route Handler. */
+/**
+ * Helper dùng chung cho các Route Handler.
+ *
+ * Kiến trúc: Worker này KHÔNG có binding R2/D1 nữa. Tầng dữ liệu nằm ở Worker
+ * backend (Python) — xem backend/src/worker.py. Ở đây chỉ còn UI + proxy.
+ */
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 export async function env(): Promise<CloudflareEnv> {
@@ -6,12 +11,8 @@ export async function env(): Promise<CloudflareEnv> {
   return env;
 }
 
-/** Key R2: log thô và JSON kết quả của mỗi dataset. */
-export const rawKey = (id: string) => `raw/${id}.log`;
-export const analysisKey = (id: string) => `analysis/${id}.json`;
-
 /**
- * Token dùng chung với analyzer.
+ * Token dùng chung với backend.
  *
  * Production: secret Cloudflare (`wrangler secret put ANALYZER_TOKEN`) -> nằm
  * trong `env`. Trong `next dev` thì KHÔNG: adapter OpenNext gọi
@@ -25,8 +26,8 @@ function token(e: CloudflareEnv): string | undefined {
 
 export const hasToken = (e: CloudflareEnv) => Boolean(token(e));
 
-/** Gọi analyzer Python qua ANALYZER_URL, kèm token nếu đã cấu hình. */
-export async function callAnalyzer(
+/** Gọi Worker backend qua ANALYZER_URL, kèm token nếu đã cấu hình. */
+export async function callBackend(
   path: string,
   init?: RequestInit & { duplex?: "half" },
 ): Promise<Response> {
@@ -41,32 +42,58 @@ export async function callAnalyzer(
 }
 
 /**
- * Ghi ReadableStream vào R2.
+ * Chuyển tiếp một request sang backend rồi bọc lại kèm thông tin handler.
  *
- * R2.put() chỉ nhận stream khi biết trước độ dài: trên workerd bọc qua
- * FixedLengthStream để dữ liệu chảy thẳng vào R2; trong `next dev` (Node) không
- * có API đó nên buffer — chấp nhận được vì upload đã chặn ở MAX_UPLOAD_BYTES.
+ * Chỉ response được parse — body request (upload) vẫn chảy dạng stream, Worker
+ * này không đọc byte nào của log thô.
+ *
+ * Backend đặt phần mô tả việc nó vừa làm vào `_note`; ở đây tách ra để UI hiện
+ * đúng chỗ, phần còn lại là payload.
  */
-export async function putToR2(
-  bucket: R2Bucket,
-  key: string,
-  body: ReadableStream,
-  length: number | null,
-): Promise<R2Object | null> {
-  const opts = { httpMetadata: { contentType: "text/plain; charset=utf-8" } };
-  if (length && typeof FixedLengthStream !== "undefined") {
-    const fixed = new FixedLengthStream(length);
-    void body.pipeTo(fixed.writable).catch(() => {});
-    return bucket.put(key, fixed.readable, opts);
+export async function proxy(
+  path: string,
+  started: number,
+  init?: RequestInit & { duplex?: "half" },
+): Promise<Response> {
+  let upstream: Response;
+  try {
+    upstream = await callBackend(path, init);
+  } catch (err) {
+    const e = await env();
+    return fail(
+      `Không gọi được backend: ${err instanceof Error ? err.message : String(err)} ` +
+        `(ANALYZER_URL = ${e.ANALYZER_URL})`,
+      502,
+    );
   }
-  return bucket.put(key, await new Response(body).arrayBuffer(), opts);
+
+  const text = await upstream.text();
+  let body: Record<string, unknown>;
+  try {
+    body = text ? (JSON.parse(text) as Record<string, unknown>) : {};
+  } catch {
+    return fail(`Backend trả về không phải JSON: ${text.slice(0, 200)}`, 502);
+  }
+
+  if (!upstream.ok) {
+    // FastAPI trả lỗi ở khoá `detail`.
+    const detail = body.detail ?? body.error ?? `HTTP ${upstream.status}`;
+    return fail(String(detail).slice(0, 300), upstream.status);
+  }
+
+  const { _note, ...data } = body as { _note?: string };
+  return json(data, started, {
+    by: "python-worker",
+    note: _note,
+    status: upstream.status,
+  });
 }
 
 /** Trả JSON kèm thông tin "ai xử lý request này" để UI minh hoạ được. */
 export function json(
   data: object,
   startedAt: number,
-  opts: { by?: "nextjs-worker" | "python-service"; note?: string; status?: number } = {},
+  opts: { by?: "nextjs-worker" | "python-worker"; note?: string; status?: number } = {},
 ): Response {
   const by = opts.by ?? "nextjs-worker";
   const ms = Math.round((performance.now() - startedAt) * 10) / 10;

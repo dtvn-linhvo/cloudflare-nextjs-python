@@ -13,31 +13,17 @@
     "binding": "ASSETS"
   },
 
-  // Log thô + kết quả phân tích đã cache. Blob lớn -> R2.
+  // Tầng dữ liệu KHÔNG còn ở đây: R2 (LOGS) và D1 (DB) là binding của Worker
+  // backend, xem backend/wrangler.jsonc. Worker này gọi backend qua HTTP.
+  //
+  // Bucket dưới đây chỉ liên quan tới cache của OpenNext, không phải dữ liệu
+  // app. App không dùng ISR nên hiện không được đọc tới; giữ vì
+  // opennextjs-cloudflare deploy sẽ đòi đúng tên này nếu open-next.config bật
+  // r2IncrementalCache — có sẵn thì deploy không bao giờ fail vì nó.
   "r2_buckets": [
-    {
-      "binding": "LOGS",
-      "bucket_name": "loglens-logs"
-    },
-    // App không dùng ISR nên binding này hiện không được đọc tới. Giữ vì
-    // opennextjs-cloudflare deploy sẽ đòi đúng tên này nếu open-next.config
-    // bật r2IncrementalCache — có sẵn thì deploy không bao giờ fail vì nó,
-    // và sau này muốn bật ISR thì đã có chỗ.
     {
       "binding": "NEXT_INC_CACHE_R2_BUCKET",
       "bucket_name": "loglens-logs"
-    }
-  ],
-
-  // Metadata dataset. Query nhẹ, đọc nhiều -> D1.
-  // database_id là DB thật trên Cloudflare; local dev bỏ qua nó và dùng
-  // sqlite trong .wrangler/state.
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "loglens-db",
-      "database_id": "57afc538-a1a1-49c2-a4e9-c628bd1190f9",
-      "migrations_dir": "migrations"
     }
   ],
 
@@ -45,8 +31,9 @@
   "observability": { "enabled": true },
 
   "vars": {
-    // Analyzer Python. Local dev là uvicorn ở cổng 8000; TRƯỚC KHI DEPLOY đổi
-    // thành URL public của analyzer, ví dụ "https://analyzer.mien.vn".
+    // Worker backend (backend/). Local dev: pywrangler dev ở cổng 8000;
+    // TRƯỚC KHI DEPLOY đổi thành URL của Worker đó, ví dụ
+    // "https://loglens-analyzer.<account>.workers.dev".
     // Kiểm tra sau khi deploy bằng GET /api/health.
     "ANALYZER_URL": "http://localhost:8000",
     "MAX_UPLOAD_BYTES": "26214400"

@@ -32,7 +32,7 @@ export interface Analysis {
 }
 
 export interface Handler {
-  handled_by: "nextjs-worker" | "python-service";
+  handled_by: "nextjs-worker" | "python-worker";
   duration_ms: number;
   note?: string;
 }
