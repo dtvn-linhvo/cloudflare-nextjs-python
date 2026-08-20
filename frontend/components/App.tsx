@@ -97,8 +97,9 @@ export default function App() {
     <main className="shell">
       <h1>LogLens</h1>
       <p className="lede">
-        Demo một web application chạy trên Cloudflare: Next.js ở Workers lo
-        request nhẹ (D1, R2), việc nặng đẩy sang service Python bên ngoài.
+        Demo một web application chạy trên Cloudflare: Next.js ở Workers lo UI
+        và chuyển tiếp request, Worker Python nắm D1 + R2 và toàn bộ phần phân
+        tích log.
       </p>
 
       {/* Trạng thái config — chỗ nghiệm thu sau khi deploy */}
@@ -106,8 +107,16 @@ export default function App() {
         <div className="card">
           <h2>Cấu hình đang hoạt động</h2>
           <ul className="checks">
-            <Check ok={Boolean(health.bindings.r2)} label="R2 binding LOGS" hint="log thô + cache kết quả" />
-            <Check ok={Boolean(health.bindings.d1)} label="D1 binding DB" hint="metadata dataset" />
+            <Check
+              ok={Boolean(health.bindings.r2)}
+              label="R2 binding LOGS"
+              hint="log thô + cache kết quả (binding của Worker Python)"
+            />
+            <Check
+              ok={Boolean(health.bindings.d1)}
+              label="D1 binding DB"
+              hint="metadata dataset (binding của Worker Python)"
+            />
             <Check
               ok={Boolean(health.bindings.analyzer_url)}
               label="Var ANALYZER_URL"
@@ -119,7 +128,7 @@ export default function App() {
               hint={health.bindings.analyzer_token_set ? "đã đặt" : "chưa đặt (bắt buộc khi deploy)"}
               warnOnly
             />
-            <Check ok={health.analyzer.ok} label="Analyzer Python" hint="phản hồi /health" />
+            <Check ok={health.analyzer.ok} label="Worker backend Python" hint="phản hồi /health" />
           </ul>
         </div>
       )}
@@ -141,7 +150,7 @@ export default function App() {
           }}
         />
         <span className="muted">
-          Chưa có file? <code>cd backend && .venv/bin/python scripts/generate_logs.py sample.log 200000</code>
+          Chưa có file? <code>python3 backend/scripts/generate_logs.py sample.log 200000</code>
         </span>
         <span className="spacer" />
         {busy && <span className="muted">{busy}</span>}
@@ -149,8 +158,8 @@ export default function App() {
 
       {last && (
         <div className="handler">
-          <span className={`badge ${last.handled_by === "python-service" ? "python" : "worker"}`}>
-            {last.handled_by === "python-service" ? "Python service" : "Next.js Worker"}
+          <span className={`badge ${last.handled_by === "python-worker" ? "python" : "worker"}`}>
+            {last.handled_by === "python-worker" ? "Python Worker" : "Next.js Worker"}
           </span>
           <strong>{last.duration_ms} ms</strong>
           {last.note && <span className="muted">— {last.note}</span>}

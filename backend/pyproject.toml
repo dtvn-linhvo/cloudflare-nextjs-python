@@ -1,0 +1,19 @@
+# Khai báo package cho Python Worker. KHÔNG ghim version: Pyodide cấp sẵn bản
+# của nó cho từng package, ghim vào là pywrangler sync fail.
+# Không có uvicorn (Cloudflare chạy app qua ASGI) và không có python-dotenv
+# (không có file .env trên Worker — xem _var() trong src/worker.py).
+[project]
+name = "loglens-analyzer"
+version = "2.0.0"
+description = "Analyzer log của LogLens, chạy như Python Worker"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi",
+    "numpy",
+]
+
+[dependency-groups]
+dev = [
+    "workers-py",
+    "workers-runtime-sdk",
+]
