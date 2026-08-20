@@ -128,7 +128,15 @@ export default function App() {
               hint={health.bindings.analyzer_token_set ? "đã đặt" : "chưa đặt (bắt buộc khi deploy)"}
               warnOnly
             />
-            <Check ok={health.analyzer.ok} label="Worker backend Python" hint="phản hồi /health" />
+            <Check
+              ok={health.analyzer.ok}
+              label="Worker backend Python"
+              hint={
+                health.bindings.backend_transport === "service-binding"
+                  ? "phản hồi /health qua service binding"
+                  : `phản hồi /health qua HTTP (${health.bindings.analyzer_url ?? "?"})`
+              }
+            />
           </ul>
         </div>
       )}

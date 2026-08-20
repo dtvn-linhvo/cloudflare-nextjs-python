@@ -14,7 +14,8 @@
   },
 
   // Tầng dữ liệu KHÔNG còn ở đây: R2 (LOGS) và D1 (DB) là binding của Worker
-  // backend, xem backend/wrangler.jsonc. Worker này gọi backend qua HTTP.
+  // backend, xem backend/wrangler.jsonc. Worker này gọi backend qua service
+  // binding ANALYZER bên dưới.
   //
   // Bucket dưới đây chỉ liên quan tới cache của OpenNext, không phải dữ liệu
   // app. App không dùng ISR nên hiện không được đọc tới; giữ vì
@@ -27,14 +28,29 @@
     }
   ],
 
+  // Nối sang Worker backend bằng service binding: request đi trong mạng
+  // Cloudflare, không ra internet, không phụ thuộc URL workers.dev.
+  //
+  // Local dev cũng dùng đường này: `next dev` (getPlatformProxy) và
+  // `opennextjs-cloudflare preview` đều nối được vào phiên `pywrangler dev`
+  // của backend qua dev registry của wrangler — đã kiểm tra cả hai. Điều kiện
+  // là backend đang chạy; không có binding thì lib/cf.ts rơi về ANALYZER_URL.
+  "services": [
+    {
+      "binding": "ANALYZER",
+      "service": "backend-python-worker"
+    }
+  ],
+
   // Bật Real-time Logs / Logs trên dashboard.
   "observability": { "enabled": true },
 
   "vars": {
-    // Worker backend (backend/). Local dev: pywrangler dev ở cổng 8000;
-    // TRƯỚC KHI DEPLOY đổi thành URL của Worker đó, ví dụ
-    // "https://loglens-analyzer.<account>.workers.dev".
-    // Kiểm tra sau khi deploy bằng GET /api/health.
+    // Chỉ là đường dự phòng khi không có service binding ANALYZER ở trên —
+    // ví dụ chạy frontend một mình, hoặc muốn trỏ sang analyzer ở nơi khác.
+    // Khi deploy thì binding thắng, nên KHÔNG cần sửa thành URL workers.dev.
+    // Kiểm tra bằng GET /api/health: bindings.backend_transport phải là
+    // "service-binding".
     "ANALYZER_URL": "http://localhost:8000",
     "MAX_UPLOAD_BYTES": "26214400"
   }

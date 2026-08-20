@@ -4,7 +4,7 @@
  * Binding R2/D1 giờ nằm ở backend, nên trạng thái của chúng lấy từ /health của
  * backend chứ không kiểm tra được tại đây.
  */
-import { callBackend, env, hasToken, json } from "@/lib/cf";
+import { backendTransport, callBackend, env, hasToken, json } from "@/lib/cf";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +36,7 @@ export async function GET() {
         d1: Boolean(bindings.d1),
         analyzer_url: e.ANALYZER_URL ?? null,
         analyzer_token_set: hasToken(e),
+        backend_transport: backendTransport(e),
       },
       analyzer: backend,
     },

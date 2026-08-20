@@ -26,18 +26,39 @@ function token(e: CloudflareEnv): string | undefined {
 
 export const hasToken = (e: CloudflareEnv) => Boolean(token(e));
 
-/** Gọi Worker backend qua ANALYZER_URL, kèm token nếu đã cấu hình. */
+/** Đường đang dùng để gọi backend — hiện trên trang cấu hình để nghiệm thu. */
+export const backendTransport = (e: CloudflareEnv): "service-binding" | "http" =>
+  (e as unknown as { ANALYZER?: Fetcher }).ANALYZER ? "service-binding" : "http";
+
+/**
+ * Gọi Worker backend.
+ *
+ * Ưu tiên service binding ANALYZER: request đi thẳng trong mạng Cloudflare,
+ * backend không cần lộ ra internet. Local dev cũng đi đường này nhờ dev
+ * registry của wrangler, miễn là backend đang chạy `pywrangler dev`.
+ *
+ * Rơi về ANALYZER_URL khi không có binding — ví dụ chạy frontend một mình, hay
+ * khi cố tình trỏ sang một analyzer ở nơi khác.
+ */
 export async function callBackend(
   path: string,
   init?: RequestInit & { duplex?: "half" },
 ): Promise<Response> {
   const e = await env();
-  if (!e.ANALYZER_URL) throw new Error("Thiếu cấu hình ANALYZER_URL");
 
   const headers = new Headers(init?.headers);
   const t = token(e);
   if (t) headers.set("X-Analyzer-Token", t);
 
+  const backend = (e as unknown as { ANALYZER?: Fetcher }).ANALYZER;
+  if (backend) {
+    // Hostname không có ý nghĩa với service binding, chỉ cần là URL hợp lệ.
+    return backend.fetch(`https://backend${path}`, { ...init, headers });
+  }
+
+  if (!e.ANALYZER_URL) {
+    throw new Error("Thiếu cả service binding ANALYZER và var ANALYZER_URL");
+  }
   return fetch(`${e.ANALYZER_URL.replace(/\/$/, "")}${path}`, { ...init, headers });
 }
 
