@@ -2,7 +2,9 @@
   // Worker backend: analyzer + tầng dữ liệu (R2 + D1).
   // Deploy: `uv run pywrangler deploy` (không phải wrangler
   // thường — pywrangler còn phải vendor package Python vào bundle).
-  "name": "loglens-analyzer",
+  // Phải khớp tên Worker trên dashboard. Workers Builds deploy vào Worker mà
+  // nó được gắn; tên khác thì build chỉ cảnh báo rồi ghi đè bằng tên của CI.
+  "name": "backend-python-worker",
   "main": "src/worker.py",
   "compatibility_date": "2025-11-02",
 
@@ -40,7 +42,14 @@
   "vars": {
     // Chặn body quá lớn. 25MB khớp MAX_UPLOAD_BYTES bên frontend; Worker chỉ
     // có 128MB bộ nhớ nên đừng nâng cao hơn nhiều.
-    "MAX_BODY_BYTES": "26214400"
+    "MAX_BODY_BYTES": "26214400",
+
+    // Trần số dòng cho một lần /analyze — vì gói Free chỉ cho 10ms CPU/request.
+    // Đo trên workerd (chỉ tính vòng lặp parse, chưa tính JSON + R2 + D1):
+    //   1k -> 6ms | 2k -> 6ms | 3k -> 12ms | 5k -> 16ms | 50k -> 130ms
+    // Nên 2000 là mức còn dư chỗ cho phần còn lại của request.
+    // Lên Workers Paid (30s CPU) thì đặt "0" để bỏ giới hạn: 200k dòng ~477ms.
+    "MAX_ANALYZE_LINES": "2000"
   },
 
   // Cùng cổng với uvicorn cũ, để ANALYZER_URL local của frontend không phải đổi.

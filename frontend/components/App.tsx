@@ -150,7 +150,7 @@ export default function App() {
           }}
         />
         <span className="muted">
-          Chưa có file? <code>python3 backend/scripts/generate_logs.py sample.log 200000</code>
+          Chưa có file? <code>python3 backend/scripts/generate_logs.py sample.log 2000</code>
         </span>
         <span className="spacer" />
         {busy && <span className="muted">{busy}</span>}

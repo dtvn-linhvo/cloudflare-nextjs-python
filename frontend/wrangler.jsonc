@@ -3,7 +3,7 @@
   // Phải khớp tên Worker trên dashboard. Workers Builds deploy vào Worker mà
   // nó được gắn; nếu tên ở đây khác thì `npm run deploy` từ máy local sẽ tạo
   // ra một Worker thứ hai.
-  "name": "cloudflare-nextjs-python",
+  "name": "frontend-nextjs-worker",
   "main": ".open-next/worker.js",
   "compatibility_date": "2025-08-01",
   "compatibility_flags": ["nodejs_compat"],

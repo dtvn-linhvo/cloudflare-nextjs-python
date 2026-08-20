@@ -1,16 +1,17 @@
-# Khai báo package cho Python Worker. KHÔNG ghim version: Pyodide cấp sẵn bản
-# của nó cho từng package, ghim vào là pywrangler sync fail.
-# Không có uvicorn (Cloudflare chạy app qua ASGI) và không có python-dotenv
-# (không có file .env trên Worker — xem _var() trong src/worker.py).
+# Khai báo package cho Python Worker.
+#
+# `dependencies` rỗng là có chủ ý: FastAPI + numpy làm bundle lên 5.03MB nén,
+# vượt giới hạn 3MiB của gói Workers Free. Bỏ đi thì app chỉ dùng stdlib (do
+# runtime cấp) + SDK workers, và cũng đỡ CPU mỗi request. Xem đầu
+# src/worker.py.
+#
+# Nếu thêm package sau này: KHÔNG ghim version, Pyodide cấp sẵn bản của nó.
 [project]
 name = "loglens-analyzer"
-version = "2.0.0"
+version = "3.0.0"
 description = "Analyzer log của LogLens, chạy như Python Worker"
 requires-python = ">=3.12"
-dependencies = [
-    "fastapi",
-    "numpy",
-]
+dependencies = []
 
 [dependency-groups]
 dev = [
