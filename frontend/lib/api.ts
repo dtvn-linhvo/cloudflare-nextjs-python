@@ -45,7 +45,7 @@ async function call<T>(path: string, init?: RequestInit): Promise<WithHandler<T>
   const text = await res.text();
   const body = text ? JSON.parse(text) : {};
 
-  if (!res.ok) throw new Error(body.error ?? `Request lỗi ${res.status}`);
+  if (!res.ok) throw new Error(body.error ?? `Request failed ${res.status}`);
   return { data: body as T, handler: body._handler as Handler };
 }
 
@@ -78,4 +78,4 @@ export const api = {
 export const bytes = (n: number) =>
   n < 1024 ? `${n} B` : n < 1e6 ? `${(n / 1024).toFixed(0)} KB` : `${(n / 1e6).toFixed(1)} MB`;
 
-export const num = (n: number) => n.toLocaleString("vi-VN");
+export const num = (n: number) => n.toLocaleString("en-US");

@@ -148,7 +148,7 @@ def _check_token(got: str | None) -> None:
     if not expected:
         return
     if got is None or not secrets.compare_digest(got, expected):
-        raise HttpError(401, "Thiếu hoặc sai X-Analyzer-Token")
+        raise HttpError(401, "Missing or invalid X-Analyzer-Token")
 
 
 # ------------------------------------------------------------------- routes
@@ -174,7 +174,7 @@ async def _list_datasets() -> Response:
         "SELECT * FROM datasets ORDER BY created_at DESC, rowid DESC LIMIT 50"
     ).all()
     return _json(
-        {"datasets": _rows(res), "_note": "1 câu SELECT trên D1 — không đọc log thô"}
+        {"datasets": _rows(res), "_note": "one SELECT on D1 — no raw log read"}
     )
 
 
@@ -183,20 +183,20 @@ async def _delete_dataset(dataset_id: str) -> Response:
     await env.LOGS.delete(_raw_key(dataset_id))
     await env.LOGS.delete(_analysis_key(dataset_id))
     await env.DB.prepare("DELETE FROM datasets WHERE id = ?").bind(dataset_id).run()
-    return _json({"deleted": dataset_id, "_note": "xoá 2 object R2 + 1 row D1"})
+    return _json({"deleted": dataset_id, "_note": "deleted 2 R2 objects + 1 D1 row"})
 
 
 async def _get_analysis(dataset_id: str) -> Response:
     """NHẸ — đọc JSON kết quả đã cache trong R2, không phân tích lại."""
     obj = await env.LOGS.get(_analysis_key(dataset_id))
     if obj is None:
-        raise HttpError(404, "Chưa phân tích dataset này")
+        raise HttpError(404, "This dataset has not been analyzed yet")
     cached = await obj.text()
     # Nối chuỗi thay vì parse rồi serialize lại: kết quả có thể vài trăm KB.
     body = (
         '{"analysis":'
         + cached
-        + ',"_note":"đọc JSON đã cache từ R2 — không phân tích lại"}'
+        + ',"_note":"read cached JSON from R2 — no re-analysis"}'
     )
     return Response(body, headers=JSON_HEADERS)
 
@@ -214,7 +214,7 @@ async def _read_lines(dataset_id: str, offset: int) -> Response:
         _raw_key(dataset_id), _js({"range": {"offset": offset, "length": WINDOW}})
     )
     if obj is None:
-        raise HttpError(404, "Không đọc được log thô từ R2")
+        raise HttpError(404, "Could not read the raw log from R2")
 
     data = Uint8Array.new(await obj.arrayBuffer()).to_bytes()
     total = int(obj.size)
@@ -225,7 +225,7 @@ async def _read_lines(dataset_id: str, offset: int) -> Response:
     last_newline = data.rfind(NEWLINE)
     end = len(data) if eof else last_newline
     if end <= start:
-        raise HttpError(422, "Cửa sổ 64 KB không chứa dòng trọn vẹn nào")
+        raise HttpError(422, "The 64 KB window contains no complete line")
 
     lines = [
         line
@@ -238,7 +238,7 @@ async def _read_lines(dataset_id: str, offset: int) -> Response:
             "read_bytes": len(data),
             "total_bytes": total,
             "next_offset": None if eof else offset + last_newline + 1,
-            "_note": f"R2 range read {len(data) / 1024:.0f} KB trên file {total / 1e6:.1f} MB",
+            "_note": f"R2 range read of {len(data) / 1024:.0f} KB from a {total / 1e6:.1f} MB file",
         }
     )
 
@@ -248,7 +248,7 @@ async def _analyze(dataset_id: str, top: int) -> Response:
     obj = await env.LOGS.get(_raw_key(dataset_id))
     if obj is None:
         await _mark_failed(dataset_id)
-        raise HttpError(404, "Không tìm thấy log thô trong R2")
+        raise HttpError(404, "Raw log not found in R2")
 
     try:
         # Đọc theo stream từ R2: không bao giờ giữ cả file trong bộ nhớ.
@@ -270,9 +270,9 @@ async def _analyze(dataset_id: str, top: int) -> Response:
     ).run()
 
     parsed = f"{result['lines_parsed']:,}".replace(",", ".")
-    note = f"Python quét {parsed} dòng trong {result['compute_ms']} ms"
+    note = f"Python scanned {parsed} lines in {result['compute_ms']} ms"
     if result["truncated"]:
-        note += " — cắt ở MAX_ANALYZE_LINES, kết quả là một phần đầu file"
+        note += " — truncated at MAX_ANALYZE_LINES, results cover only the start of the file"
     return _json({"analysis": result, "_note": note})
 
 
@@ -338,8 +338,8 @@ async def _summarize(lines: AsyncIterator[str], top: int) -> dict:
     if not buckets:
         raise HttpError(
             422,
-            f"Không parse được dòng nào trong {total} dòng. "
-            "Format mong đợi: '<ISO timestamp> <LEVEL> <source> <message>'",
+            f"Could not parse any of the {total} lines. "
+            "Expected format: '<ISO timestamp> <LEVEL> <source> <message>'",
         )
 
     # Khoá là timestamp cắt tới phút nên sắp theo chuỗi cũng là sắp theo thời gian.
@@ -391,14 +391,14 @@ async def _lines(chunks: AsyncIterator[bytes]) -> AsyncIterator[str]:
             continue
         size += len(chunk)
         if size > limit:
-            raise HttpError(413, f"Log quá lớn (> {limit // (1024 * 1024)} MB)")
+            raise HttpError(413, f"Log too large (> {limit // (1024 * 1024)} MB)")
         parts = (carry + decoder.decode(chunk)).split("\n")
         carry = parts.pop()  # dòng cuối có thể chưa trọn, để lại cho chunk sau
         for line in parts:
             yield line
 
     if not size:
-        raise HttpError(400, "Body rỗng — cần nội dung log thô")
+        raise HttpError(400, "Empty body — raw log content is required")
 
     carry += decoder.decode(b"", final=True)
     if carry:
@@ -429,9 +429,9 @@ async def _upload(js_req, worker_env) -> Response:
 
     limit = _max_body_bytes()
     if declared > limit:
-        raise HttpError(413, f"Log quá lớn (> {limit // (1024 * 1024)} MB)")
+        raise HttpError(413, f"Log too large (> {limit // (1024 * 1024)} MB)")
     if js_req.body is None:
-        raise HttpError(400, "Thiếu nội dung file")
+        raise HttpError(400, "Missing file content")
 
     dataset_id = str(uuid4())
     name = (js_req.headers.get("x-file-name") or "upload.log")[:120]
@@ -449,9 +449,9 @@ async def _upload(js_req, worker_env) -> Response:
         async for chunk in js_req.body:
             buffered += chunk.to_bytes()
             if len(buffered) > limit:
-                raise HttpError(413, f"Log quá lớn (> {limit // (1024 * 1024)} MB)")
+                raise HttpError(413, f"Log too large (> {limit // (1024 * 1024)} MB)")
         if not buffered:
-            raise HttpError(400, "Thiếu nội dung file")
+            raise HttpError(400, "Missing file content")
         declared = len(buffered)
         obj = await worker_env.LOGS.put(
             _raw_key(dataset_id), _js(Uint8Array.new(buffered)), opts
@@ -466,7 +466,7 @@ async def _upload(js_req, worker_env) -> Response:
         {
             "id": dataset_id,
             "name": name,
-            "_note": "upload -> R2 + 1 INSERT D1, không parse dòng nào",
+            "_note": "upload -> R2 + 1 D1 INSERT, no line parsed",
         },
         201,
     )
@@ -493,7 +493,7 @@ async def _route(js_req) -> Response:
             return await _list_datasets()
         if method == "POST":
             return await _upload(js_req, env)
-        raise HttpError(405, f"{method} không dùng được ở /datasets")
+        raise HttpError(405, f"{method} is not supported on /datasets")
 
     if len(parts) >= 2 and parts[0] == "datasets":
         dataset_id = parts[1]
@@ -510,14 +510,14 @@ async def _route(js_req) -> Response:
             offset = _clamp(url.searchParams.get("offset"), default=0, low=0, high=None)
             return await _read_lines(dataset_id, offset)
 
-    raise HttpError(404, f"Không có route {method} {url.pathname}")
+    raise HttpError(404, f"No route for {method} {url.pathname}")
 
 
 def _clamp(raw, default: int, low: int, high: int | None) -> int:
     try:
         value = int(raw) if raw else default
     except ValueError:
-        raise HttpError(400, f"Tham số không phải số: {raw}") from None
+        raise HttpError(400, f"Parameter is not a number: {raw}") from None
     if value < low:
         value = low
     if high is not None and value > high:

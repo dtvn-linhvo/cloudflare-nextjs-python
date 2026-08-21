@@ -21,11 +21,11 @@ export async function POST(request: Request) {
   const declared = Number(request.headers.get("content-length") ?? 0);
   if (declared > limit) {
     return fail(
-      `File ${(declared / 1e6).toFixed(1)} MB vượt giới hạn ${(limit / 1e6).toFixed(0)} MB`,
+      `File ${(declared / 1e6).toFixed(1)} MB exceeds the ${(limit / 1e6).toFixed(0)} MB limit`,
       413,
     );
   }
-  if (!request.body) return fail("Thiếu nội dung file");
+  if (!request.body) return fail("Missing file content");
 
   return proxy("/datasets", started, {
     method: "POST",

@@ -57,7 +57,7 @@ export async function callBackend(
   }
 
   if (!e.ANALYZER_URL) {
-    throw new Error("Thiếu cả service binding ANALYZER và var ANALYZER_URL");
+    throw new Error("Missing both the ANALYZER service binding and the ANALYZER_URL var");
   }
   return fetch(`${e.ANALYZER_URL.replace(/\/$/, "")}${path}`, { ...init, headers });
 }
@@ -82,7 +82,7 @@ export async function proxy(
   } catch (err) {
     const e = await env();
     return fail(
-      `Không gọi được backend: ${err instanceof Error ? err.message : String(err)} ` +
+      `Could not reach the backend: ${err instanceof Error ? err.message : String(err)} ` +
         `(ANALYZER_URL = ${e.ANALYZER_URL})`,
       502,
     );
@@ -93,7 +93,7 @@ export async function proxy(
   try {
     body = text ? (JSON.parse(text) as Record<string, unknown>) : {};
   } catch {
-    return fail(`Backend trả về không phải JSON: ${text.slice(0, 200)}`, 502);
+    return fail(`Backend did not return JSON: ${text.slice(0, 200)}`, 502);
   }
 
   if (!upstream.ok) {

@@ -23,7 +23,7 @@ export default function App() {
       const handler = await fn();
       if (handler) setLast(handler);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Lỗi không xác định");
+      setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setBusy(null);
     }
@@ -36,14 +36,14 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    void run("Đang kiểm tra binding…", async () => {
+    void run("Checking bindings…", async () => {
       setHealth((await api.health()).data);
       return refresh();
     });
   }, [run, refresh]);
 
   const open = (id: string) =>
-    run("Đang mở dataset…", async () => {
+    run("Opening dataset…", async () => {
       setSelected(id);
       setAnalysis(null);
       setLog(null);
@@ -57,7 +57,7 @@ export default function App() {
     });
 
   const analyze = (id: string) =>
-    run("Python đang quét toàn bộ log…", async () => {
+    run("Python is scanning the whole log…", async () => {
       setSelected(id);
       const { data, handler } = await api.analyze(id);
       setAnalysis(data.analysis);
@@ -66,7 +66,7 @@ export default function App() {
     });
 
   const upload = (file: File) =>
-    run(`Đang tải ${file.name} lên R2…`, async () => {
+    run(`Uploading ${file.name} to R2…`, async () => {
       const { data, handler } = await api.upload(file);
       await refresh();
       void analyze(data.id);
@@ -74,7 +74,7 @@ export default function App() {
     });
 
   const more = () =>
-    run("Đọc cửa sổ tiếp theo…", async () => {
+    run("Reading the next window…", async () => {
       if (!selected || log?.next == null) return;
       const { data, handler } = await api.lines(selected, log.next);
       setLog({ lines: data.lines, next: data.next_offset, note: handler.note ?? "" });
@@ -82,7 +82,7 @@ export default function App() {
     });
 
   const remove = (id: string) =>
-    run("Đang xoá…", async () => {
+    run("Deleting…", async () => {
       const { handler } = await api.remove(id);
       if (selected === id) {
         setSelected(null);
@@ -97,44 +97,44 @@ export default function App() {
     <main className="shell">
       <h1>LogLens</h1>
       <p className="lede">
-        Demo một web application chạy trên Cloudflare: Next.js ở Workers lo UI
-        và chuyển tiếp request, Worker Python nắm D1 + R2 và toàn bộ phần phân
-        tích log.
+        A demo web application running on Cloudflare: Next.js on Workers
+        handles the UI and forwards requests, while a Python Worker owns D1 + R2
+        and all of the log analysis.
       </p>
 
       {/* Trạng thái config — chỗ nghiệm thu sau khi deploy */}
       {health && (
         <div className="card">
-          <h2>Cấu hình đang hoạt động</h2>
+          <h2>Active configuration</h2>
           <ul className="checks">
             <Check
               ok={Boolean(health.bindings.r2)}
               label="R2 binding LOGS"
-              hint="log thô + cache kết quả (binding của Worker Python)"
+              hint="raw logs + cached results (binding on the Python Worker)"
             />
             <Check
               ok={Boolean(health.bindings.d1)}
               label="D1 binding DB"
-              hint="metadata dataset (binding của Worker Python)"
+              hint="dataset metadata (binding on the Python Worker)"
             />
             <Check
               ok={Boolean(health.bindings.analyzer_url)}
               label="Var ANALYZER_URL"
-              hint={String(health.bindings.analyzer_url ?? "chưa đặt")}
+              hint={String(health.bindings.analyzer_url ?? "not set")}
             />
             <Check
               ok={Boolean(health.bindings.analyzer_token_set)}
               label="Secret ANALYZER_TOKEN"
-              hint={health.bindings.analyzer_token_set ? "đã đặt" : "chưa đặt (bắt buộc khi deploy)"}
+              hint={health.bindings.analyzer_token_set ? "set" : "not set (required when deploying)"}
               warnOnly
             />
             <Check
               ok={health.analyzer.ok}
-              label="Worker backend Python"
+              label="Python backend Worker"
               hint={
                 health.bindings.backend_transport === "service-binding"
-                  ? "phản hồi /health qua service binding"
-                  : `phản hồi /health qua HTTP (${health.bindings.analyzer_url ?? "?"})`
+                  ? "responds to /health over the service binding"
+                  : `responds to /health over HTTP (${health.bindings.analyzer_url ?? "?"})`
               }
             />
           </ul>
@@ -143,7 +143,7 @@ export default function App() {
 
       <div className="toolbar">
         <button className="primary" onClick={() => fileInput.current?.click()} disabled={busy !== null}>
-          Tải file log lên
+          Upload log file
         </button>
         <input
           ref={fileInput}
@@ -157,9 +157,6 @@ export default function App() {
             e.target.value = "";
           }}
         />
-        <span className="muted">
-          Chưa có file? <code>python3 backend/scripts/generate_logs.py sample.log 2000</code>
-        </span>
         <span className="spacer" />
         {busy && <span className="muted">{busy}</span>}
       </div>
@@ -182,11 +179,11 @@ export default function App() {
           <table>
             <thead>
               <tr>
-                <th>Tên</th>
-                <th className="num">Kích thước</th>
-                <th className="num">Dòng</th>
-                <th className="num">Tỉ lệ lỗi</th>
-                <th className="num">Python tính</th>
+                <th>Name</th>
+                <th className="num">Size</th>
+                <th className="num">Lines</th>
+                <th className="num">Error rate</th>
+                <th className="num">Python compute</th>
                 <th />
               </tr>
             </thead>
@@ -201,10 +198,10 @@ export default function App() {
                   </td>
                   <td className="num">{d.compute_ms == null ? "—" : `${d.compute_ms} ms`}</td>
                   <td className="row">
-                    <button onClick={() => void open(d.id)} disabled={busy !== null}>Xem</button>
-                    <button onClick={() => void analyze(d.id)} disabled={busy !== null}>Phân tích</button>
+                    <button onClick={() => void open(d.id)} disabled={busy !== null}>View</button>
+                    <button onClick={() => void analyze(d.id)} disabled={busy !== null}>Analyze</button>
                     <button className="danger" onClick={() => void remove(d.id)} disabled={busy !== null}>
-                      Xoá
+                      Delete
                     </button>
                   </td>
                 </tr>
@@ -216,23 +213,23 @@ export default function App() {
 
       {analysis && (
         <div className="card">
-          <h2>Kết quả (Python)</h2>
+          <h2>Results (Python)</h2>
           <p className="sub">
-            {num(analysis.lines_parsed)} dòng · {analysis.buckets.length} bucket/phút ·{" "}
-            {(analysis.error_rate * 100).toFixed(2)}% lỗi · INFO {num(analysis.levels.INFO)} / WARN{" "}
+            {num(analysis.lines_parsed)} lines · {analysis.buckets.length} buckets/minute ·{" "}
+            {(analysis.error_rate * 100).toFixed(2)}% errors · INFO {num(analysis.levels.INFO)} / WARN{" "}
             {num(analysis.levels.WARN)} / ERROR {num(analysis.levels.ERROR)}
-            {analysis.lines_skipped > 0 && ` · ${num(analysis.lines_skipped)} dòng không khớp format`}
+            {analysis.lines_skipped > 0 && ` · ${num(analysis.lines_skipped)} lines did not match the format`}
           </p>
 
           <div className="two">
             <div>
-              <h3>Phút có nhiều lỗi nhất</h3>
+              <h3>Minutes with the most errors</h3>
               <table>
                 <thead>
                   <tr>
-                    <th>Phút (UTC)</th>
-                    <th className="num">Tổng</th>
-                    <th className="num">Lỗi</th>
+                    <th>Minute (UTC)</th>
+                    <th className="num">Total</th>
+                    <th className="num">Errors</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -247,12 +244,12 @@ export default function App() {
               </table>
             </div>
             <div>
-              <h3>Nhóm lỗi nhiều nhất</h3>
+              <h3>Most frequent error groups</h3>
               <table>
                 <thead>
                   <tr>
-                    <th className="num">Số lần</th>
-                    <th>Message (số đã chuẩn hoá)</th>
+                    <th className="num">Count</th>
+                    <th>Message (numbers normalised)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -271,11 +268,11 @@ export default function App() {
 
       {log && (
         <div className="card">
-          <h2>Log thô (Worker)</h2>
+          <h2>Raw log (Worker)</h2>
           <p className="sub">{log.note}</p>
           <pre className="raw">{log.lines.join("\n")}</pre>
           <button onClick={() => void more()} disabled={busy !== null || log.next == null}>
-            {log.next == null ? "Đã tới cuối file" : "Đọc 64 KB tiếp →"}
+            {log.next == null ? "End of file reached" : "Read next 64 KB →"}
           </button>
         </div>
       )}
